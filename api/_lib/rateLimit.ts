@@ -1,4 +1,26 @@
-// replace getClientIp with this version
+export const runtime = 'edge';
+
+import { Redis } from '@upstash/redis';
+
+type Opts = { limit: number; windowSec: number };
+
+/** Sliding-window per key with ZSET + TTL. */
+export async function rateLimit(
+  redis: Redis,
+  key: string,
+  { limit, windowSec }: Opts
+): Promise<boolean> {
+  const now = Date.now();
+  const windowMs = windowSec * 1000;
+
+  await redis.zadd(key, { score: now, member: String(now) });
+  await redis.zremrangebyscore(key, 0, now - windowMs);
+  const count = await redis.zcard(key);
+  await redis.expire(key, windowSec);
+
+  return count <= limit;
+}
+
 export function getClientIp(req: Request | any): string {
   const h = (req as any)?.headers;
   if (!h) return 'ip:unknown';

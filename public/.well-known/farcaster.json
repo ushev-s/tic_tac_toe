@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "name": "Tic-Tac-Toe",
+  "iconUrl": "https://tic-tac-toe-eight-swart.vercel.app/app-icon-1024.png",
+  "homeUrl": "https://tic-tac-toe-eight-swart.vercel.app/",
+  "termsUrl": "https://tic-tac-toe-eight-swart.vercel.app/terms.html",
+  "privacyUrl": "https://tic-tac-toe-eight-swart.vercel.app/privacy.html",
+  "description": "Play Tic-Tac-Toe with AI or friends, track wins, and compete on the global leaderboard.",
+  "categories": ["games", "entertainment"],
+  "platforms": ["farcaster"],
+  "screenshots": [
+    {
+      "imageUrl": "https://tic-tac-toe-eight-swart.vercel.app/og.png",
+      "caption": "Game board and score tracking"
+    }
+  ],
+  "contact": {
+    "farcaster": "@avokado",
+    "email": "crypto.mamkin@gmail.com"
+  }
+}

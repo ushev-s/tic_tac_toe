@@ -9,20 +9,29 @@ const redis = new Redis({
   token: process.env.UPSTASH_REDIS_REST_TOKEN!
 });
 
-// PROD defaults for leaderboard
+function getHeader(req: Request | any, name: string): string | null {
+  const h = (req as any)?.headers;
+  if (!h) return null;
+  if (typeof h.get === 'function') return h.get(name);
+  const v = h[name] ?? h[name.toLowerCase()] ?? h[name.toUpperCase()];
+  return Array.isArray(v) ? v[0] : v ?? null;
+}
+
+// === PROD defaults for leaderboard ===
 const RL_FID_LIMIT = Number(process.env.RL_LB_FID_LIMIT ?? 120);
 const RL_FID_WINDOW = Number(process.env.RL_LB_FID_WINDOW ?? 60);
 const RL_IP_LIMIT = Number(process.env.RL_LB_IP_LIMIT ?? 300);
 const RL_IP_WINDOW = Number(process.env.RL_LB_IP_WINDOW ?? 60);
 
-export default async function handler(req: Request): Promise<Response> {
+export default async function handler(req: Request | any): Promise<Response> {
   if (req.method !== 'GET') return new Response('Method not allowed', { status: 405 });
 
   const ip = getClientIp(req);
 
+  // optional auth → per-fid rate limit
   let fid: string | null = null;
-  const authHeader = req.headers.get('authorization');
-  if (authHeader?.startsWith('Bearer ')) {
+  const authHeader = getHeader(req, 'authorization'); // <-- фикс
+  if (authHeader?.toLowerCase().startsWith('bearer ')) {
     const user = await requireUser(req);
     if (!('error' in user)) fid = String(user.fid);
   }
@@ -43,7 +52,7 @@ export default async function handler(req: Request): Promise<Response> {
     );
   }
 
-  const url = new URL(req.url);
+  const url = new URL(typeof req.url === 'string' ? req.url : '', 'https://example.org');
   const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '25', 10), 100);
 
   const rows = (await redis.zrange('lb:wins', 0, limit - 1, { withScores: true, rev: true })) as {

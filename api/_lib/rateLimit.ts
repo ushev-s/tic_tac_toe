@@ -16,7 +16,7 @@ export async function rateLimit(
   await redis.zadd(key, { score: now, member: String(now) });
   await redis.zremrangebyscore(key, 0, now - windowMs);
   const count = await redis.zcard(key);
-  await redis.expire(key, windowSec); // авто-очистка
+  await redis.expire(key, windowSec);
 
   return count <= limit;
 }

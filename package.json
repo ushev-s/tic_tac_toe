@@ -1,0 +1,7 @@
+{
+  "type": "module",
+  "dependencies": {
+    "@farcaster/quick-auth": "^0.1.0",
+    "@vercel/kv": "^1.0.0"
+  }
+}

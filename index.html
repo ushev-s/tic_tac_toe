@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tic-Tac-Toe · Farcaster Mini App</title>
+    <meta
+      name="fc:miniapp"
+      content='{"version":"1","imageUrl":"https://your-domain.xyz/og.png","button":{"title":"Play","action":{"type":"launch_miniapp","name":"Tic-Tac-Toe","url":"https://your-domain.xyz/"}}}'
+    />
+    <style>
+      body {
+        font-family: sans-serif;
+        background: #0b0c10;
+        color: #fff;
+        margin: 0;
+        padding: 0;
+      }
+      .app {
+        max-width: 560px;
+        margin: 0 auto;
+        padding: 16px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin-top: 12px;
+      }
+      .cell {
+        aspect-ratio: 1/1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 48px;
+        font-weight: bold;
+        background: #111;
+        border: 1px solid #333;
+        border-radius: 8px;
+        cursor: pointer;
+      }
+      .controls,
+      .toolbar {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+        flex-wrap: wrap;
+      }
+      button {
+        flex: 1;
+        padding: 8px;
+        border: none;
+        border-radius: 8px;
+        background: #222;
+        color: #fff;
+        font-weight: bold;
+        cursor: pointer;
+      }
+      .score {
+        display: flex;
+        gap: 8px;
+        margin-top: 8px;
+      }
+      .badge {
+        padding: 4px 8px;
+        background: #111;
+        border: 1px solid #333;
+        border-radius: 8px;
+      }
+      #leaderboardModal {
+        background: #16181d;
+        position: fixed;
+        inset: 16px;
+        max-width: 560px;
+        margin: auto;
+        padding: 16px;
+        border-radius: 12px;
+        display: none;
+        flex-direction: column;
+        gap: 12px;
+        z-index: 100;
+      }
+      .lb-row {
+        display: flex;
+        justify-content: space-between;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <h1>Tic-Tac-Toe</h1>
+      <div id="turn">Turn: X</div>
+      <div class="score" id="score"></div>
+
+      <div class="toolbar">
+        <button id="reset">New game</button>
+        <button id="clear">Reset totals</button>
+        <button id="leaderboardBtn">Leaderboard</button>
+      </div>
+
+      <div class="grid" id="grid"></div>
+    </div>
+
+    <div id="leaderboardModal">
+      <div style="display: flex; justify-content: space-between; align-items: center">
+        <h2>🏆 Leaderboard</h2>
+        <button id="closeLb">Close</button>
+      </div>
+      <div id="lbBody"></div>
+    </div>
+
+    <script type="module">
+      import { sdk } from 'https://esm.sh/@farcaster/miniapp-sdk';
+
+      const gridEl = document.getElementById('grid');
+      const turnEl = document.getElementById('turn');
+      const scoreEl = document.getElementById('score');
+      const resetBtn = document.getElementById('reset');
+      const clearBtn = document.getElementById('clear');
+      const lbModal = document.getElementById('leaderboardModal');
+      const lbBody = document.getElementById('lbBody');
+      const lbBtn = document.getElementById('leaderboardBtn');
+      const closeLb = document.getElementById('closeLb');
+
+      let board = Array(9).fill(null);
+      let player = 'X';
+      let finished = false;
+      const score = JSON.parse(localStorage.getItem('score') || '{"x":0,"o":0,"draw":0}');
+
+      const wins = [
+        [0, 1, 2],
+        [3, 4, 5],
+        [6, 7, 8],
+        [0, 3, 6],
+        [1, 4, 7],
+        [2, 5, 8],
+        [0, 4, 8],
+        [2, 4, 6]
+      ];
+
+      function renderScore() {
+        scoreEl.innerHTML = `<span class="badge">X: ${score.x}</span><span class="badge">O: ${score.o}</span><span class="badge">Draws: ${score.draw}</span>`;
+      }
+      function renderBoard() {
+        gridEl.innerHTML = '';
+        board.forEach((mark, idx) => {
+          const cell = document.createElement('div');
+          cell.className = 'cell';
+          cell.textContent = mark || '';
+          cell.addEventListener('click', () => move(idx));
+          gridEl.appendChild(cell);
+        });
+      }
+      function move(i) {
+        if (finished || board[i]) return;
+        board[i] = player;
+        checkGame();
+        if (!finished) {
+          player = player === 'X' ? 'O' : 'X';
+          updateUI();
+        }
+      }
+      function checkGame() {
+        for (const [a, b, c] of wins) {
+          if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+            finished = true;
+            const winner = board[a];
+            score[winner.toLowerCase()]++;
+            localStorage.setItem('score', JSON.stringify(score));
+            postMatch(winner.toLowerCase());
+            return;
+          }
+        }
+        if (board.every(Boolean)) {
+          finished = true;
+          score.draw++;
+          localStorage.setItem('score', JSON.stringify(score));
+          postMatch('draw');
+        }
+      }
+      function updateUI() {
+        turnEl.textContent = finished ? 'Game over' : `Turn: ${player}`;
+        renderBoard();
+        renderScore();
+      }
+      function newGame() {
+        board = Array(9).fill(null);
+        finished = false;
+        player = 'X';
+        updateUI();
+      }
+
+      async function postMatch(outcome) {
+        try {
+          await sdk.quickAuth.fetch(`/api/match`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ outcome })
+          });
+        } catch {}
+      }
+      async function loadLeaderboard() {
+        lbBody.innerHTML = 'Loading…';
+        try {
+          const res = await sdk.quickAuth.fetch(`/api/leaderboard?limit=10`);
+          const data = await res.json();
+          lbBody.innerHTML = data.entries
+            .map(
+              (row, i) => `
+        <div class="lb-row">
+          <div>${i + 1}. FID ${row.fid}${row.username ? ` (@${row.username})` : ''}</div>
+          <div>W:${row.wins} L:${row.losses} D:${row.draws}</div>
+        </div>`
+            )
+            .join('');
+        } catch {
+          lbBody.innerHTML = 'Failed to load leaderboard';
+        }
+      }
+
+      lbBtn.addEventListener('click', () => {
+        lbModal.style.display = 'flex';
+        loadLeaderboard();
+      });
+      closeLb.addEventListener('click', () => {
+        lbModal.style.display = 'none';
+      });
+      resetBtn.addEventListener('click', newGame);
+      clearBtn.addEventListener('click', () => {
+        score.x = score.o = score.draw = 0;
+        localStorage.setItem('score', JSON.stringify(score));
+        renderScore();
+      });
+
+      newGame();
+    </script>
+  </body>
+</html>

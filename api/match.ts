@@ -9,7 +9,7 @@ const redis = new Redis({
   token: process.env.UPSTASH_REDIS_REST_TOKEN!
 });
 
-// PROD defaults (можно переопределить env-переменными)
+// PROD defaults
 const RL_FID_LIMIT = Number(process.env.RL_FID_LIMIT ?? 60);
 const RL_FID_WINDOW = Number(process.env.RL_FID_WINDOW ?? 60);
 const RL_IP_LIMIT = Number(process.env.RL_IP_LIMIT ?? 120);

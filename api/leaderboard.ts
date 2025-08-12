@@ -46,10 +46,10 @@ export default async function handler(req: Request): Promise<Response> {
   const url = new URL(req.url);
   const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '25', 10), 100);
 
-  const rows = await redis.zrange<{ member: string; score: number }>('lb:wins', 0, limit - 1, {
-    withScores: true,
-    rev: true
-  });
+  const rows = (await redis.zrange('lb:wins', 0, limit - 1, { withScores: true, rev: true })) as {
+    member: string;
+    score: number;
+  }[];
 
   const keys = rows.map((r) => `user:${r.member}`);
   const entries = await Promise.all(

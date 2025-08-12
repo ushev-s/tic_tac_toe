@@ -1,8 +1,8 @@
 export const runtime = 'nodejs';
 
 import { Redis } from '@upstash/redis';
-import { rateLimit, getClientIp } from './_lib/rateLimit';
-import { requireUser } from './_lib/auth';
+import { rateLimit, getClientIp } from './_lib/rateLimit.js';
+import { requireUser } from './_lib/auth.js';
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL!,

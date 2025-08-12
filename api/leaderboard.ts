@@ -6,8 +6,8 @@ import { requireUser } from './_lib/auth.js';
 import { getHeader, safeUrl, withTimeout } from './_lib/util.js';
 
 const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL!,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN!
+  url: process.env.KV_REST_API_URL,
+  token: process.env.KV_REST_API_TOKEN
 });
 
 const API_TIMEOUT_MS = Number(process.env.API_TIMEOUT_MS ?? 3000);

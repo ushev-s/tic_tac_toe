@@ -21,7 +21,7 @@ export default async function handler(req: Request): Promise<Response> {
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
 
   const user = await requireUser(req);
-  if ('error' in user) return user.error;
+  if ('error' in user) return user.error ?? new Response('Unauthorized', { status: 401 });
   const fid = String(user.fid);
   const ip = getClientIp(req);
 

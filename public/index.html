@@ -3,129 +3,315 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Tic-Tac-Toe · Farcaster Mini App</title>
+    <title>Tic-Tac-Toe · Farcaster Mini App (AI + Leaderboard)</title>
+
+    <!-- Replace with your deployed domain -->
     <meta
       name="fc:miniapp"
-      content='{"version":"1","imageUrl":"https://tic-tac-toe-eight-swart.vercel.app/og.png","button":{"title":"Play","action":{"type":"launch_miniapp","name":"Tic-Tac-Toe","url":"https://tic-tac-toe-eight-swart.vercel.app/"}}}'
+      content='{
+      "version":"1",
+      "imageUrl":"https://your-domain.xyz/og.png",
+      "button":{"title":"Play","action":{"type":"launch_miniapp","name":"Tic-Tac-Toe","url":"https://your-domain.xyz/"}}
+    }'
     />
+    <meta
+      name="fc:frame"
+      content='{
+      "version":"1",
+      "imageUrl":"https://your-domain.xyz/og.png",
+      "button":{"title":"Play","action":{"type":"launch_frame","name":"Tic-Tac-Toe","url":"https://your-domain.xyz/"}}
+    }'
+    />
+
     <style>
+      :root {
+        --bg: #0b0c10;
+        --card: #16181d;
+        --muted: #8a94a6;
+        --text: #e8edf3;
+        --accent: #7c5cff;
+        --x: #23d160;
+        --o: #ff3860;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
       body {
-        font-family: sans-serif;
-        background: #0b0c10;
-        color: #fff;
+        height: 100%;
         margin: 0;
-        padding: 0;
+        background: var(--bg);
+        color: var(--text);
+        font: 16px/1.4 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell,
+          Noto Sans, Arial;
       }
       .app {
+        min-height: 100dvh;
+        display: grid;
+        grid-template-rows: auto 1fr auto;
         max-width: 560px;
         margin: 0 auto;
         padding: 16px;
       }
-      .grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 8px;
-        margin-top: 12px;
-      }
-      .cell {
-        aspect-ratio: 1/1;
+      header {
         display: flex;
         align-items: center;
-        justify-content: center;
-        font-size: 48px;
-        font-weight: bold;
-        background: #111;
-        border: 1px solid #333;
-        border-radius: 8px;
-        cursor: pointer;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 8px 0;
       }
-      .controls,
+      .brand {
+        font-weight: 800;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid #1f232b;
+        border-radius: 16px;
+        padding: 16px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+      }
+      .status {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border: 1px solid #262a33;
+        background: #11141a;
+        color: var(--muted);
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+      }
       .toolbar {
         display: flex;
         gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 10px;
+      }
+      select,
+      .toggle {
+        background: #0f141c;
+        color: var(--text);
+        border: 1px solid #222734;
+        border-radius: 10px;
+        padding: 8px 10px;
+        font-weight: 600;
+      }
+      .grid {
         margin-top: 12px;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+      }
+      .cell {
+        aspect-ratio: 1/1;
+        border-radius: 14px;
+        border: 1px solid #272b34;
+        background: #0f1218;
+        display: grid;
+        place-items: center;
+        font-size: clamp(44px, 9vw, 64px);
+        font-weight: 800;
+        cursor: pointer;
+        user-select: none;
+        transition: transform 0.05s ease, background 0.2s, border-color 0.2s;
+      }
+      .cell:active {
+        transform: scale(0.98);
+      }
+      .cell.x {
+        color: var(--x);
+      }
+      .cell.o {
+        color: var(--o);
+      }
+      .cell.win {
+        background: #101824;
+        border-color: #3a4456;
+      }
+      .controls {
+        display: flex;
+        gap: 8px;
+        margin-top: 14px;
         flex-wrap: wrap;
       }
-      button {
+      button.primary,
+      button.secondary {
         flex: 1;
-        padding: 8px;
-        border: none;
-        border-radius: 8px;
-        background: #222;
-        color: #fff;
-        font-weight: bold;
+        padding: 12px 14px;
+        border-radius: 12px;
+        border: 1px solid #2a2f39;
+        background: #11151c;
+        color: var(--text);
+        font-weight: 700;
         cursor: pointer;
+      }
+      button.primary {
+        background: #1a1f29;
+        border-color: #323744;
+      }
+      button:focus-visible {
+        outline: 3px solid var(--accent);
+        outline-offset: 2px;
+      }
+      footer {
+        color: var(--muted);
+        font-size: 12px;
+        opacity: 0.8;
+        padding: 8px 0;
       }
       .score {
         display: flex;
         gap: 8px;
-        margin-top: 8px;
+        flex-wrap: wrap;
       }
-      .badge {
-        padding: 4px 8px;
-        background: #111;
-        border: 1px solid #333;
-        border-radius: 8px;
+      .score .badge {
+        padding: 6px 10px;
+        border-radius: 10px;
+        background: #0f141c;
+        border: 1px solid #222734;
       }
-      #leaderboardModal {
-        background: #16181d;
+      .modal {
         position: fixed;
-        inset: 16px;
-        max-width: 560px;
-        margin: auto;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        margin: 0 auto;
         padding: 16px;
-        border-radius: 12px;
+        max-width: 560px;
+        z-index: 50;
         display: none;
-        flex-direction: column;
-        gap: 12px;
-        z-index: 100;
       }
-      .lb-row {
+      .img-preview {
+        margin-top: 12px;
         display: flex;
-        justify-content: space-between;
+        flex-direction: column;
+        gap: 8px;
+        align-items: center;
+      }
+      .img-preview img {
+        width: 100%;
+        max-width: 480px;
+        border-radius: 12px;
+        border: 1px solid #222734;
+      }
+      .hint {
+        font-size: 12px;
+        color: var(--muted);
       }
     </style>
   </head>
   <body>
     <div class="app">
-      <h1>Tic-Tac-Toe</h1>
-      <div id="turn">Turn: X</div>
-      <div class="score" id="score"></div>
+      <header>
+        <div class="brand">Tic-Tac-Toe</div>
+        <div class="pill" id="env">Loading…</div>
+      </header>
 
-      <div class="toolbar">
-        <button id="reset">New game</button>
-        <button id="clear">Reset totals</button>
-        <button id="leaderboardBtn">Leaderboard</button>
-      </div>
+      <main class="card">
+        <div class="status">
+          <div>
+            <div id="turn">Turn: X</div>
+            <div class="score" id="score"></div>
+          </div>
+          <div class="pill" id="result">Game in progress</div>
+        </div>
 
-      <div class="grid" id="grid"></div>
+        <div class="toolbar">
+          <label class="toggle"
+            >Mode:
+            <select id="mode">
+              <option value="human">2 Players</option>
+              <option value="ai">Vs AI</option>
+            </select>
+          </label>
+          <label class="toggle"
+            >First move:
+            <select id="first">
+              <option value="X">X (you)</option>
+              <option value="O">O (AI)</option>
+            </select>
+          </label>
+          <button class="secondary" id="leaderboardBtn">Leaderboard</button>
+          <button class="secondary" id="saveImage">Save score image</button>
+        </div>
+
+        <div class="grid" id="grid"></div>
+
+        <div class="controls">
+          <button class="primary" id="reset">New game</button>
+          <button class="secondary" id="clear">Reset totals</button>
+        </div>
+
+        <div class="img-preview" id="imgSection" hidden>
+          <img id="scoreImg" alt="Score image preview" />
+          <div class="hint">
+            This image includes your current totals. You can share it anywhere.
+          </div>
+        </div>
+
+        <div id="leaderboardModal" class="modal">
+          <div class="card">
+            <div
+              style="display: flex; align-items: center; justify-content: space-between; gap: 8px"
+            >
+              <div style="font-weight: 800">🏆 Leaderboard</div>
+              <button id="closeLb" class="secondary" style="flex: 0 0 auto">Close</button>
+            </div>
+            <div id="lbBody" style="margin-top: 10px; display: grid; gap: 8px"></div>
+            <div class="hint">
+              Sign in via Quick Auth happens automatically when you open the leaderboard or post a
+              match.
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <footer>AI mode + Quick Auth leaderboard. Optimized for Farcaster Mini Apps.</footer>
     </div>
 
-    <div id="leaderboardModal">
-      <div style="display: flex; justify-content: space-between; align-items: center">
-        <h2>🏆 Leaderboard</h2>
-        <button id="closeLb">Close</button>
-      </div>
-      <div id="lbBody"></div>
-    </div>
+    <canvas id="exportCanvas" width="1200" height="630" style="display: none"></canvas>
 
     <script type="module">
       import { sdk } from 'https://esm.sh/@farcaster/miniapp-sdk';
 
+      const envEl = document.getElementById('env');
       const gridEl = document.getElementById('grid');
       const turnEl = document.getElementById('turn');
-      const scoreEl = document.getElementById('score');
+      const resultEl = document.getElementById('result');
       const resetBtn = document.getElementById('reset');
       const clearBtn = document.getElementById('clear');
-      const lbModal = document.getElementById('leaderboardModal');
-      const lbBody = document.getElementById('lbBody');
-      const lbBtn = document.getElementById('leaderboardBtn');
+      const scoreEl = document.getElementById('score');
+      const modeSel = document.getElementById('mode');
+      const firstSel = document.getElementById('first');
+      const leaderboardBtn = document.getElementById('leaderboardBtn');
+      const leaderboardModal = document.getElementById('leaderboardModal');
       const closeLb = document.getElementById('closeLb');
+      const lbBody = document.getElementById('lbBody');
+      const saveImageBtn = document.getElementById('saveImage');
+      const imgSection = document.getElementById('imgSection');
+      const scoreImg = document.getElementById('scoreImg');
+      const exportCanvas = document.getElementById('exportCanvas');
 
-      let board = Array(9).fill(null);
-      let player = 'X';
-      let finished = false;
-      const score = JSON.parse(localStorage.getItem('score') || '{"x":0,"o":0,"draw":0}');
+      const API_BASE = location.origin;
+
+      // Totals (local only)
+      const SCORE_KEY = 'tictactoe:score';
+      const score = JSON.parse(localStorage.getItem(SCORE_KEY) || '{"x":0,"o":0,"draw":0}');
+      const saveScore = () => localStorage.setItem(SCORE_KEY, JSON.stringify(score));
+
+      // Game state
+      let board, player, finished;
+      let mode = localStorage.getItem('tictactoe:mode') || 'human';
+      let first = localStorage.getItem('tictactoe:first') || 'X';
+      modeSel.value = mode;
+      firstSel.value = first;
 
       const wins = [
         [0, 1, 2],
@@ -138,59 +324,7 @@
         [2, 4, 6]
       ];
 
-      function renderScore() {
-        scoreEl.innerHTML = `<span class="badge">X: ${score.x}</span><span class="badge">O: ${score.o}</span><span class="badge">Draws: ${score.draw}</span>`;
-      }
-      function renderBoard() {
-        gridEl.innerHTML = '';
-        board.forEach((mark, idx) => {
-          const cell = document.createElement('div');
-          cell.className = 'cell';
-          cell.textContent = mark || '';
-          cell.addEventListener('click', () => move(idx));
-          gridEl.appendChild(cell);
-        });
-      }
-      function move(i) {
-        if (finished || board[i]) return;
-        board[i] = player;
-        checkGame();
-        if (!finished) {
-          player = player === 'X' ? 'O' : 'X';
-          updateUI();
-        }
-      }
-      function checkGame() {
-        for (const [a, b, c] of wins) {
-          if (board[a] && board[a] === board[b] && board[a] === board[c]) {
-            finished = true;
-            const winner = board[a];
-            score[winner.toLowerCase()]++;
-            localStorage.setItem('score', JSON.stringify(score));
-            postMatch(winner.toLowerCase());
-            return;
-          }
-        }
-        if (board.every(Boolean)) {
-          finished = true;
-          score.draw++;
-          localStorage.setItem('score', JSON.stringify(score));
-          postMatch('draw');
-        }
-      }
-      function updateUI() {
-        turnEl.textContent = finished ? 'Game over' : `Turn: ${player}`;
-        renderBoard();
-        renderScore();
-      }
-      function newGame() {
-        board = Array(9).fill(null);
-        finished = false;
-        player = 'X';
-        updateUI();
-      }
-
-      // ---- Auth-aware fetch (works in Mini App and plain web) ----
+      // ---- Capabilities + resilient auth fetch ----
       let _caps;
       async function getCaps() {
         if (_caps) return _caps;
@@ -201,33 +335,182 @@
         }
         return _caps;
       }
-
       async function authFetch(url, init = {}) {
         const caps = await getCaps();
         const inMini = await sdk.isInMiniApp().catch(() => false);
         const domain = location.host;
 
-        // 1) Prefer sdk.quickAuth.fetch if supported
         if (inMini && caps.includes('quickAuth.fetch') && sdk.quickAuth?.fetch) {
           try {
             return await sdk.quickAuth.fetch(url, init);
-          } catch (e) {
-            // fall through to manual token path
-          }
+          } catch {}
         }
-        // 2) Manual token + normal fetch
         if (inMini && (caps.includes('quickAuth.getToken') || sdk.quickAuth?.getToken)) {
           const token = await sdk.quickAuth.getToken({ domain });
           const headers = new Headers(init.headers || {});
           headers.set('authorization', `Bearer ${token}`);
-          headers.set('content-type', headers.get('content-type') || 'application/json');
+          if (!headers.has('content-type') && init.body)
+            headers.set('content-type', 'application/json');
           return fetch(url, { ...init, headers });
         }
-
-        // 3) Plain fetch (web mode: leaderboard ok, match will 401)
         return fetch(url, init);
       }
 
+      // ---- UI rendering ----
+      function renderScore() {
+        scoreEl.innerHTML = `
+          <span class="badge">X: ${score.x}</span>
+          <span class="badge">O: ${score.o}</span>
+          <span class="badge">Draws: ${score.draw}</span>
+        `;
+      }
+      function renderBoard() {
+        gridEl.innerHTML = '';
+        board.forEach((mark, idx) => {
+          const btn = document.createElement('button');
+          btn.className = 'cell' + (mark ? ' ' + mark.toLowerCase() : '');
+          btn.setAttribute('aria-label', `Cell ${idx + 1}`);
+          btn.textContent = mark || '';
+          btn.addEventListener('click', () => onCellClick(idx));
+          gridEl.appendChild(btn);
+        });
+      }
+      function updateUI() {
+        turnEl.textContent = finished ? 'Game over' : `Turn: ${player}`;
+        renderBoard();
+        renderScore();
+      }
+
+      // ---- Game flow ----
+      function onCellClick(i) {
+        if (finished || board[i]) return;
+        if (mode === 'ai' && getHuman() !== player) return; // wait AI
+        board[i] = player;
+        checkGame();
+        if (!finished) {
+          player = player === 'X' ? 'O' : 'X';
+          updateUI();
+          if (mode === 'ai' && getHuman() !== player) setTimeout(aiMove, 200);
+        } else {
+          updateUI();
+        }
+      }
+      function newGame() {
+        board = Array(9).fill(null);
+        finished = false;
+        player = first;
+        resultEl.textContent = 'Game in progress';
+        updateUI();
+        if (mode === 'ai' && getHuman() !== player) setTimeout(aiMove, 250);
+      }
+      resetBtn.addEventListener('click', () => newGame());
+      clearBtn.addEventListener('click', () => {
+        score.x = score.o = score.draw = 0;
+        saveScore();
+        renderScore();
+      });
+      modeSel.addEventListener('change', () => {
+        mode = modeSel.value;
+        localStorage.setItem('tictactoe:mode', mode);
+        newGame();
+      });
+      firstSel.addEventListener('change', () => {
+        first = firstSel.value;
+        localStorage.setItem('tictactoe:first', first);
+        newGame();
+      });
+
+      // ---- AI (minimax, optimal) ----
+      function getHuman() {
+        return mode === 'ai' ? 'X' : null;
+      } // human is X
+      function aiMove() {
+        if (finished) return;
+        const ai = 'O',
+          human = 'X';
+        const move = bestMove(board, ai, human);
+        if (move != null) {
+          board[move] = ai;
+          checkGame();
+          if (!finished) player = human;
+          updateUI();
+        }
+      }
+      function bestMove(b, ai, human) {
+        if (!b[4]) return 4; // small heuristic
+        let best = -Infinity,
+          mv = null;
+        for (let i = 0; i < 9; i++)
+          if (!b[i]) {
+            b[i] = ai;
+            const s = minimax(b, 0, false, ai, human);
+            b[i] = null;
+            if (s > best) {
+              best = s;
+              mv = i;
+            }
+          }
+        return mv;
+      }
+      function minimax(b, depth, isMax, ai, human) {
+        const r = evaluate(b, ai, human);
+        if (r !== null) return r - depth * 0.01; // prefer quick wins
+        if (isMax) {
+          let best = -Infinity;
+          for (let i = 0; i < 9; i++)
+            if (!b[i]) {
+              b[i] = ai;
+              best = Math.max(best, minimax(b, depth + 1, false, ai, human));
+              b[i] = null;
+            }
+          return best;
+        } else {
+          let best = Infinity;
+          for (let i = 0; i < 9; i++)
+            if (!b[i]) {
+              b[i] = human;
+              best = Math.min(best, minimax(b, depth + 1, true, ai, human));
+              b[i] = null;
+            }
+          return best;
+        }
+      }
+      function evaluate(b, ai, human) {
+        for (const [a, m, c] of wins) {
+          if (b[a] && b[a] === b[m] && b[a] === b[c]) return b[a] === ai ? 1 : -1;
+        }
+        if (b.every(Boolean)) return 0;
+        return null;
+      }
+      function checkGame() {
+        for (const [a, b, c] of wins) {
+          if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+            finished = true;
+            highlightWin([a, b, c]);
+            const winner = board[a];
+            resultEl.textContent = `Winner: ${winner}`;
+            score[winner.toLowerCase()]++;
+            saveScore();
+            // report result
+            postMatch(winner.toLowerCase());
+            return;
+          }
+        }
+        if (board.every(Boolean)) {
+          finished = true;
+          resultEl.textContent = 'Draw';
+          score.draw++;
+          saveScore();
+          postMatch('draw');
+        }
+      }
+      function highlightWin(indices) {
+        [...gridEl.children].forEach((el, idx) => {
+          if (indices.includes(idx)) el.classList.add('win');
+        });
+      }
+
+      // ---- Leaderboard & backend calls ----
       async function postMatch(outcome) {
         try {
           await authFetch(`${API_BASE}/api/match`, {
@@ -237,39 +520,111 @@
           });
         } catch {}
       }
-      async function loadLeaderboard() {
-        lbBody.innerHTML = 'Loading…';
+      async function openLeaderboard() {
+        leaderboardModal.style.display = 'block';
+        lbBody.innerHTML = '<div class="pill">Loading…</div>';
         try {
           const res = await authFetch(`${API_BASE}/api/leaderboard?limit=25`);
           const data = await res.json();
-          lbBody.innerHTML = data.entries
-            .map(
-              (row, i) => `
-        <div class="lb-row">
-          <div>${i + 1}. FID ${row.fid}${row.username ? ` (@${row.username})` : ''}</div>
-          <div>W:${row.wins} L:${row.losses} D:${row.draws}</div>
-        </div>`
-            )
-            .join('');
+          lbBody.innerHTML = '';
+          data.entries.forEach((row, i) => {
+            const div = document.createElement('div');
+            div.className = 'card';
+            div.style.padding = '10px';
+            div.innerHTML = `<div style="display:flex;align-items:center;gap:8px;justify-content:space-between;">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <div style="font-weight:800;width:22px;text-align:right;">${i + 1}</div>
+                <div style="opacity:.9">FID ${row.fid}${
+              row.username ? ` (@${row.username})` : ''
+            }</div>
+              </div>
+              <div class="score"><span class="badge">W: ${row.wins}</span><span class="badge">L: ${
+              row.losses
+            }</span><span class="badge">D: ${row.draws}</span></div>
+            </div>`;
+            lbBody.appendChild(div);
+          });
         } catch {
-          lbBody.innerHTML = 'Failed to load leaderboard';
+          lbBody.innerHTML = '<div class="pill">Failed to load leaderboard</div>';
         }
       }
+      leaderboardBtn.addEventListener('click', openLeaderboard);
+      closeLb.addEventListener('click', () => (leaderboardModal.style.display = 'none'));
 
-      lbBtn.addEventListener('click', () => {
-        lbModal.style.display = 'flex';
-        loadLeaderboard();
-      });
-      closeLb.addEventListener('click', () => {
-        lbModal.style.display = 'none';
-      });
-      resetBtn.addEventListener('click', newGame);
-      clearBtn.addEventListener('click', () => {
-        score.x = score.o = score.draw = 0;
-        localStorage.setItem('score', JSON.stringify(score));
-        renderScore();
+      // ---- Score image (OG-like 1200x630) ----
+      function generateScoreImage() {
+        const c = exportCanvas;
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = '#0b0c10';
+        ctx.fillRect(0, 0, c.width, c.height);
+        ctx.fillStyle = '#16181d';
+        roundRect(ctx, 60, 60, c.width - 120, c.height - 120, 28, true);
+        ctx.fillStyle = '#e8edf3';
+        ctx.font = '700 64px Inter, system-ui, Arial';
+        ctx.fillText('Tic-Tac-Toe — Score', 100, 150);
+        ctx.font = '600 36px Inter, system-ui, Arial';
+        ctx.fillStyle = '#8a94a6';
+        ctx.fillText('Totals', 100, 210);
+        drawBadge(100, 250, `X: ${score.x}`, '#23d160');
+        drawBadge(100, 330, `O: ${score.o}`, '#ff3860');
+        drawBadge(100, 410, `Draws: ${score.draw}`, '#8a94a6');
+        ctx.font = '500 22px Inter, system-ui, Arial';
+        ctx.fillStyle = '#8a94a6';
+        ctx.fillText('Made with Farcaster Mini App', 100, 530);
+        const url = c.toDataURL('image/png');
+        scoreImg.src = url;
+        imgSection.hidden = false;
+        return url;
+      }
+      function drawBadge(x, y, text, color) {
+        const ctx = exportCanvas.getContext('2d');
+        const padX = 18;
+        ctx.font = '700 40px Inter, system-ui, Arial';
+        const w = ctx.measureText(text).width + padX * 2,
+          h = 64;
+        ctx.fillStyle = '#0f141c';
+        roundRect(ctx, x, y, w, h, 14, true);
+        ctx.strokeStyle = '#222734';
+        ctx.lineWidth = 2;
+        roundRect(ctx, x, y, w, h, 14, false);
+        ctx.fillStyle = color;
+        ctx.fillText(text, x + padX, y + 45);
+      }
+      function roundRect(ctx, x, y, w, h, r, fill) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.closePath();
+        if (fill) ctx.fill();
+        else ctx.stroke();
+      }
+      saveImageBtn.addEventListener('click', () => {
+        const url = generateScoreImage();
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'tic-tac-toe-score.png';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
       });
 
+      // ---- Mini App niceties ----
+      (async () => {
+        const isMini = await sdk.isInMiniApp().catch(() => false);
+        envEl.textContent = isMini ? 'Farcaster Mini App' : 'Web mode';
+        try {
+          await sdk.back.enableWebNavigation();
+        } catch {}
+        try {
+          await sdk.actions.ready();
+        } catch {}
+        getCaps().catch(() => {});
+      })();
+
+      // Start
       newGame();
     </script>
   </body>

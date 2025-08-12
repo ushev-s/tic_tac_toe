@@ -6,7 +6,7 @@
     <title>Tic-Tac-Toe · Farcaster Mini App</title>
     <meta
       name="fc:miniapp"
-      content='{"version":"1","imageUrl":"https://your-domain.xyz/og.png","button":{"title":"Play","action":{"type":"launch_miniapp","name":"Tic-Tac-Toe","url":"https://your-domain.xyz/"}}}'
+      content='{"version":"1","imageUrl":"https://tic-tac-toe-eight-swart.vercel.app/og.png","button":{"title":"Play","action":{"type":"launch_miniapp","name":"Tic-Tac-Toe","url":"https://tic-tac-toe-eight-swart.vercel.app/"}}}'
     />
     <style>
       body {
@@ -190,9 +190,47 @@
         updateUI();
       }
 
+      // ---- Auth-aware fetch (works in Mini App and plain web) ----
+      let _caps;
+      async function getCaps() {
+        if (_caps) return _caps;
+        try {
+          _caps = await sdk.getCapabilities();
+        } catch {
+          _caps = [];
+        }
+        return _caps;
+      }
+
+      async function authFetch(url, init = {}) {
+        const caps = await getCaps();
+        const inMini = await sdk.isInMiniApp().catch(() => false);
+        const domain = location.host;
+
+        // 1) Prefer sdk.quickAuth.fetch if supported
+        if (inMini && caps.includes('quickAuth.fetch') && sdk.quickAuth?.fetch) {
+          try {
+            return await sdk.quickAuth.fetch(url, init);
+          } catch (e) {
+            // fall through to manual token path
+          }
+        }
+        // 2) Manual token + normal fetch
+        if (inMini && (caps.includes('quickAuth.getToken') || sdk.quickAuth?.getToken)) {
+          const token = await sdk.quickAuth.getToken({ domain });
+          const headers = new Headers(init.headers || {});
+          headers.set('authorization', `Bearer ${token}`);
+          headers.set('content-type', headers.get('content-type') || 'application/json');
+          return fetch(url, { ...init, headers });
+        }
+
+        // 3) Plain fetch (web mode: leaderboard ok, match will 401)
+        return fetch(url, init);
+      }
+
       async function postMatch(outcome) {
         try {
-          await sdk.quickAuth.fetch(`/api/match`, {
+          await authFetch(`${API_BASE}/api/match`, {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({ outcome })
@@ -202,7 +240,7 @@
       async function loadLeaderboard() {
         lbBody.innerHTML = 'Loading…';
         try {
-          const res = await sdk.quickAuth.fetch(`/api/leaderboard?limit=10`);
+          const res = await authFetch(`${API_BASE}/api/leaderboard?limit=25`);
           const data = await res.json();
           lbBody.innerHTML = data.entries
             .map(

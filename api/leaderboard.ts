@@ -1,28 +1,75 @@
 export const runtime = 'edge';
 
-import { kv } from '@vercel/kv';
+import { Redis } from '@upstash/redis';
+import { rateLimit, getClientIp } from './_lib/rateLimit';
+import { requireUser } from './_lib/auth';
+
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL!,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN!
+});
+
+// === PROD defaults for leaderboard ===
+const RL_FID_LIMIT = Number(process.env.RL_LB_FID_LIMIT ?? 120);
+const RL_FID_WINDOW = Number(process.env.RL_LB_FID_WINDOW ?? 60);
+const RL_IP_LIMIT = Number(process.env.RL_LB_IP_LIMIT ?? 300);
+const RL_IP_WINDOW = Number(process.env.RL_LB_IP_WINDOW ?? 60);
 
 export default async function handler(req: Request): Promise<Response> {
+  if (req.method !== 'GET') return new Response('Method not allowed', { status: 405 });
+
+  const ip = getClientIp(req);
+
+  // authenticate user if possible
+  let fid: string | null = null;
+  const authHeader = req.headers.get('authorization');
+  if (authHeader?.startsWith('Bearer ')) {
+    const user = await requireUser(req);
+    if (!('error' in user)) fid = String(user.fid);
+  }
+
+  // limits IP always and optionally fid
+  const [okFid, okIp] = await Promise.all([
+    fid
+      ? rateLimit(redis, `rl:lb:fid:${fid}`, { limit: RL_FID_LIMIT, windowSec: RL_FID_WINDOW })
+      : Promise.resolve(true),
+    rateLimit(redis, `rl:lb:ip:${ip}`, { limit: RL_IP_LIMIT, windowSec: RL_IP_WINDOW })
+  ]);
+
+  if (!okFid || !okIp) {
+    const body = { error: 'Rate limit exceeded', scope: !okFid ? 'fid' : 'ip' };
+    return new Response(JSON.stringify(body), {
+      status: 429,
+      headers: { 'content-type': 'application/json', 'retry-after': '30' }
+    });
+  }
+
   const url = new URL(req.url);
   const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '25', 10), 100);
 
-  const rows = await kv.zrange<{ member: string; score: number }>('lb:wins', 0, limit - 1, {
-    rev: true,
-    withScores: true
+  const rows = await redis.zrange<{ member: string; score: number }>('lb:wins', 0, limit - 1, {
+    withScores: true,
+    rev: true
   });
 
+  const keys = rows.map((r) => `user:${r.member}`);
   const entries = await Promise.all(
-    rows.map(async (row) => {
-      const data = (await kv.hgetall<Record<string, string | number>>(`user:${row.member}`)) || {};
+    keys.map(async (k, i) => {
+      const h = (await redis.hgetall<Record<string, string | number>>(k)) || {};
       return {
-        fid: Number(row.member),
-        wins: Number(row.score ?? data.wins ?? 0),
-        losses: Number(data.losses ?? 0),
-        draws: Number(data.draws ?? 0),
-        username: (data.username as string) || null
+        fid: Number(rows[i].member),
+        wins: Number(rows[i].score ?? h.wins ?? 0),
+        losses: Number(h.losses ?? 0),
+        draws: Number(h.draws ?? 0),
+        username: (h.username as string) || null
       };
     })
   );
 
-  return Response.json({ entries });
+  return new Response(JSON.stringify({ entries }), {
+    headers: {
+      'content-type': 'application/json',
+      'cache-control': 's-maxage=5, stale-while-revalidate=30'
+    }
+  });
 }

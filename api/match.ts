@@ -1,7 +1,18 @@
 export const runtime = 'edge';
 
-import { kv } from '@vercel/kv';
-import { requireUser } from './lib/auth';
+import { Redis } from '@upstash/redis';
+import { requireUser } from './_lib/auth';
+import { rateLimit, getClientIp } from './_lib/rateLimit';
+
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL!,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN!
+});
+
+const RL_FID_LIMIT = Number(process.env.RL_FID_LIMIT ?? 60);
+const RL_FID_WINDOW = Number(process.env.RL_FID_WINDOW ?? 60);
+const RL_IP_LIMIT = Number(process.env.RL_IP_LIMIT ?? 120);
+const RL_IP_WINDOW = Number(process.env.RL_IP_WINDOW ?? 60);
 
 type Body = { outcome: 'x' | 'o' | 'draw' };
 
@@ -10,27 +21,43 @@ export default async function handler(req: Request): Promise<Response> {
 
   const user = await requireUser(req);
   if ('error' in user) return user.error;
-  const fid = user.fid;
+  const fid = String(user.fid);
+  const ip = getClientIp(req);
 
-  let body: Body;
+  // ---- rate limits: per fid + per IP ----
+  const [okFid, okIp] = await Promise.all([
+    rateLimit(redis, `rl:fid:${fid}`, { limit: RL_FID_LIMIT, windowSec: RL_FID_WINDOW }),
+    rateLimit(redis, `rl:ip:${ip}`, { limit: RL_IP_LIMIT, windowSec: RL_IP_WINDOW })
+  ]);
+  if (!okFid || !okIp) {
+    const body = { error: 'Rate limit exceeded', scope: !okFid ? 'fid' : 'ip' };
+    // suggest waiting for a client ~30с
+    return new Response(JSON.stringify(body), {
+      status: 429,
+      headers: { 'content-type': 'application/json', 'retry-after': '30' }
+    });
+  }
+
+  let payload: Body;
   try {
-    body = await req.json();
+    payload = await req.json();
   } catch {
     return new Response('Bad JSON', { status: 400 });
   }
-  if (!['x', 'o', 'draw'].includes(body.outcome))
+  if (!['x', 'o', 'draw'].includes(payload.outcome))
     return new Response('Bad outcome', { status: 400 });
 
-  if (body.outcome === 'x') {
-    await kv.hincrby(`user:${fid}`, 'wins', 1);
-    await kv.zincrby('lb:wins', 1, String(fid));
-  } else if (body.outcome === 'o') {
-    await kv.hincrby(`user:${fid}`, 'losses', 1);
+  const userKey = `user:${fid}`;
+
+  if (payload.outcome === 'x') {
+    await Promise.all([redis.hincrby(userKey, 'wins', 1), redis.zincrby('lb:wins', 1, fid)]);
+  } else if (payload.outcome === 'o') {
+    await redis.hincrby(userKey, 'losses', 1);
   } else {
-    await kv.hincrby(`user:${fid}`, 'draws', 1);
+    await redis.hincrby(userKey, 'draws', 1);
   }
 
-  await kv.hset(`user:${fid}`, { fid, updated_at: Date.now() });
+  await redis.hset(userKey, { fid, updated_at: Date.now() });
 
   return Response.json({ ok: true });
 }

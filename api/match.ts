@@ -1,4 +1,4 @@
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 
 import { Redis } from '@upstash/redis';
 import { requireUser } from './_lib/auth';
@@ -9,6 +9,7 @@ const redis = new Redis({
   token: process.env.UPSTASH_REDIS_REST_TOKEN!
 });
 
+// PROD defaults (можно переопределить env-переменными)
 const RL_FID_LIMIT = Number(process.env.RL_FID_LIMIT ?? 60);
 const RL_FID_WINDOW = Number(process.env.RL_FID_WINDOW ?? 60);
 const RL_IP_LIMIT = Number(process.env.RL_IP_LIMIT ?? 120);
@@ -24,40 +25,39 @@ export default async function handler(req: Request): Promise<Response> {
   const fid = String(user.fid);
   const ip = getClientIp(req);
 
-  // ---- rate limits: per fid + per IP ----
   const [okFid, okIp] = await Promise.all([
     rateLimit(redis, `rl:fid:${fid}`, { limit: RL_FID_LIMIT, windowSec: RL_FID_WINDOW }),
     rateLimit(redis, `rl:ip:${ip}`, { limit: RL_IP_LIMIT, windowSec: RL_IP_WINDOW })
   ]);
   if (!okFid || !okIp) {
-    const body = { error: 'Rate limit exceeded', scope: !okFid ? 'fid' : 'ip' };
-    // suggest waiting for a client ~30с
-    return new Response(JSON.stringify(body), {
-      status: 429,
-      headers: { 'content-type': 'application/json', 'retry-after': '30' }
-    });
+    return new Response(
+      JSON.stringify({ error: 'Rate limit exceeded', scope: !okFid ? 'fid' : 'ip' }),
+      {
+        status: 429,
+        headers: { 'content-type': 'application/json', 'retry-after': '30' }
+      }
+    );
   }
 
-  let payload: Body;
+  let body: Body;
   try {
-    payload = await req.json();
+    body = await req.json();
   } catch {
     return new Response('Bad JSON', { status: 400 });
   }
-  if (!['x', 'o', 'draw'].includes(payload.outcome))
+  if (!['x', 'o', 'draw'].includes(body.outcome))
     return new Response('Bad outcome', { status: 400 });
 
   const userKey = `user:${fid}`;
 
-  if (payload.outcome === 'x') {
+  if (body.outcome === 'x') {
     await Promise.all([redis.hincrby(userKey, 'wins', 1), redis.zincrby('lb:wins', 1, fid)]);
-  } else if (payload.outcome === 'o') {
+  } else if (body.outcome === 'o') {
     await redis.hincrby(userKey, 'losses', 1);
   } else {
     await redis.hincrby(userKey, 'draws', 1);
   }
 
   await redis.hset(userKey, { fid, updated_at: Date.now() });
-
   return Response.json({ ok: true });
 }

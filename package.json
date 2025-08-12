@@ -3,5 +3,8 @@
   "dependencies": {
     "@farcaster/quick-auth": "^0.0.7",
     "@upstash/redis": "^1.28.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.12"
   }
 }

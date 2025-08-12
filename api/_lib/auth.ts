@@ -1,7 +1,6 @@
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 
 import { createClient, Errors } from '@farcaster/quick-auth';
-
 const client = createClient();
 
 export async function requireUser(req: Request) {
@@ -13,9 +12,7 @@ export async function requireUser(req: Request) {
   const host = req.headers.get('x-forwarded-host') ?? new URL(req.url).host;
 
   try {
-    // В 0.0.7 метод называется verifyToken
     const payload = await client.verifyToken({ token, domain: host });
-    // sub — это fid
     return { fid: Number(payload.sub) };
   } catch (e) {
     if (e instanceof Errors.InvalidTokenError) {
